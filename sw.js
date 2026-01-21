@@ -1,8 +1,9 @@
-const CACHE_NAME = 'rentaltrack-v1';
+const CACHE_NAME = 'rentaltrack-v2'; // เปลี่ยนชื่อ Cache เพื่อบังคับอัปเดต
 const ASSETS = [
   './',
   './index.html',
   './manifest.json',
+  './icon.png', // เพิ่มไอคอนใหม่เข้าไปใน Cache
   'https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=Prompt:wght@300;400;600&display=swap',
   'https://unpkg.com/lucide@latest',
   'https://html2canvas.hertzen.com/dist/html2canvas.min.js',
@@ -10,9 +11,23 @@ const ASSETS = [
 ];
 
 self.addEventListener('install', (event) => {
+  // บังคับให้ Service Worker ตัวใหม่ทำงานทันที
+  self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
       return cache.addAll(ASSETS);
+    })
+  );
+});
+
+self.addEventListener('activate', (event) => {
+  // ลบ Cache เก่าทิ้งทั้งหมดเพื่อให้ใช้ไฟล์ใหม่ล่าสุด
+  event.waitUntil(
+    caches.keys().then((cacheNames) => {
+      return Promise.all(
+        cacheNames.filter((cacheName) => cacheName !== CACHE_NAME)
+          .map((cacheName) => caches.delete(cacheName))
+      );
     })
   );
 });
