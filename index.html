@@ -1392,7 +1392,7 @@
                     </div>
                     <div class="item-info">
                         <h4>ห้อง ${t.room}</h4>
-                        <p>${t.date}</p>
+                        <p>${t.date.replace(/ 25(\d{2})$/, ' $1')}</p>
                         <span class="status-badge ${isPaid ? 'status-paid' : 'status-unpaid'}">
                             ${isPaid ? 'จ่ายแล้ว' : 'ค้างชำระ'}
                         </span>
@@ -1666,7 +1666,7 @@
             // เพิ่มรายการล่าสุด พร้อมรายละเอียดมิเตอร์ และปี พ.ศ. 2 หลัก
             const rawDate = document.getElementById('bill-date').value;
             const selectedDate = new Date(rawDate);
-            const thaiYear = (selectedDate.getFullYear() + 543).toString().slice(-2);
+            const thaiYear = (selectedDate.getFullYear() + 543);
             const dateStr = `${selectedDate.getDate()} ${['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'][selectedDate.getMonth()]} ${thaiYear}`;
 
             const transactionData = {
@@ -1717,7 +1717,7 @@
             }
 
             document.getElementById('receipt-content').innerHTML = `
-                <div class="receipt-header"><h2>ใบแจ้งค่าเช่า</h2><p>ห้อง ${roomId}</p><small>${dateStr}</small></div>
+                <div class="receipt-header"><h2>ใบแจ้งค่าเช่า</h2><p>ห้อง ${roomId}</p><small>${dateStr.replace(/ 25(\d{2})$/, ' $1')}</small></div>
                 <div class="receipt-row"><span>ชื่อผู้เช่า</span><span>${room.tenant}</span></div>
                 <div class="receipt-row"><span>ค่าเช่าห้อง</span><span>฿${base.toLocaleString()}</span></div>
                 <div class="receipt-row"><span>ค่าไฟ (${Math.max(0, ec - ep)} หน่วย)</span><span>฿${ePrice.toLocaleString()}</span></div>
@@ -2020,7 +2020,7 @@
                 html += `
                     <tr class="history-row">
                         <td>
-                            <div style="font-weight:600; color:var(--text-main);">${t.date}</div>
+                            <div style="font-weight:600; color:var(--text-main);">${t.date.replace(/ 25(\d{2})$/, ' $1')}</div>
                             <div style="font-size:0.65rem; color:var(--text-muted);">฿${t.amount.toLocaleString()}</div>
                         </td>
                         <td>
