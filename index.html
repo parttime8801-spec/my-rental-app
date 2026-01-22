@@ -563,6 +563,71 @@
             gap: 8px;
         }
 
+        .camera-controls {
+            position: absolute;
+            bottom: 10px;
+            left: 0;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            padding: 0 20px;
+            z-index: 15;
+        }
+
+        .zoom-slider-container {
+            width: 100%;
+            display: none;
+            /* Hidden by default, shown if supported */
+            align-items: center;
+            gap: 10px;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 8px 15px;
+            border-radius: 20px;
+        }
+
+        .zoom-slider-container input {
+            flex: 1;
+            height: 4px;
+            -webkit-appearance: none;
+            appearance: none;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 2px;
+            outline: none;
+        }
+
+        .zoom-slider-container input::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: var(--primary);
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+        }
+
+        .torch-btn {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            border: none;
+            background: rgba(0, 0, 0, 0.5);
+            color: white;
+            display: none;
+            /* Hidden by default */
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            backdrop-filter: blur(5px);
+        }
+
+        .torch-btn.active {
+            background: var(--primary);
+            color: white;
+        }
+
         .btn-primary-large {
             width: 100%;
             background: linear-gradient(135deg, var(--primary), var(--primary-dark));
@@ -1175,6 +1240,19 @@
                 <div class="camera-container">
                     <video id="camera-video" autoplay playsinline></video>
                     <div class="camera-overlay"></div>
+
+                    <div class="camera-controls">
+                        <div id="zoom-container" class="zoom-slider-container">
+                            <i data-lucide="minus" style="width: 16px; color: white;"></i>
+                            <input type="range" id="zoom-slider" min="1" max="5" step="0.1" value="1"
+                                oninput="applyZoom(this.value)">
+                            <i data-lucide="plus" style="width: 16px; color: white;"></i>
+                        </div>
+                        <button id="torch-btn" class="torch-btn" onclick="toggleTorch()">
+                            <i data-lucide="flashlight"></i>
+                        </button>
+                    </div>
+
                     <div id="ocr-loader" class="ocr-loading">
                         <i data-lucide="refresh-cw" class="spinning"
                             style="width: 40px; height: 40px; margin-bottom: 10px;"></i>
@@ -2075,30 +2153,96 @@
         // --- Camera & OCR Logic ---
         let currentTargetInputId = '';
         let stream = null;
+        let videoTrack = null;
 
         async function openCamera(inputId) {
             currentTargetInputId = inputId;
             const modal = document.getElementById('camera-modal');
             const video = document.getElementById('camera-video');
+            const torchBtn = document.getElementById('torch-btn');
+            const zoomContainer = document.getElementById('zoom-container');
+            const zoomSlider = document.getElementById('zoom-slider');
 
             try {
                 stream = await navigator.mediaDevices.getUserMedia({
-                    video: { facingMode: 'environment' }
+                    video: {
+                        facingMode: 'environment'
+                    }
                 });
                 video.srcObject = stream;
+                videoTrack = stream.getVideoTracks()[0];
+
+                // Show modal
                 modal.classList.add('active');
                 lucide.createIcons();
+
+                // Wait for video metadata to load capabilities
+                video.onloadedmetadata = async () => {
+                    await new Promise(r => setTimeout(r, 500));
+
+                    if (videoTrack && videoTrack.getCapabilities) {
+                        const capabilities = videoTrack.getCapabilities();
+
+                        // Torch
+                        if (capabilities.torch) {
+                            torchBtn.style.display = 'flex';
+                            torchBtn.classList.remove('active');
+                        } else {
+                            torchBtn.style.display = 'none';
+                        }
+
+                        // Zoom
+                        if (capabilities.zoom) {
+                            zoomContainer.style.display = 'flex';
+                            zoomSlider.min = capabilities.zoom.min;
+                            zoomSlider.max = capabilities.zoom.max;
+                            zoomSlider.step = capabilities.zoom.step || 0.1;
+                            zoomSlider.value = capabilities.zoom.min;
+                        } else {
+                            zoomContainer.style.display = 'none';
+                        }
+                    }
+                };
             } catch (err) {
                 console.error("Error accessing camera:", err);
                 alert("ไม่สามารถเข้าถึงกล้องได้ครับ กรุณาอนุญาตการเข้าถึงกล้องด้วยนะครับ");
             }
         }
 
+        async function toggleTorch() {
+            if (!videoTrack) return;
+            const torchBtn = document.getElementById('torch-btn');
+            const isActive = torchBtn.classList.contains('active');
+            try {
+                await videoTrack.applyConstraints({
+                    advanced: [{ torch: !isActive }]
+                });
+                torchBtn.classList.toggle('active');
+            } catch (err) {
+                console.error('Torch error:', err);
+            }
+        }
+
+        async function applyZoom(value) {
+            if (!videoTrack) return;
+            try {
+                await videoTrack.applyConstraints({
+                    advanced: [{ zoom: parseFloat(value) }]
+                });
+            } catch (err) {
+                console.error('Zoom error:', err);
+            }
+        }
+
         function closeCamera() {
             const modal = document.getElementById('camera-modal');
             if (stream) {
+                if (videoTrack) {
+                    videoTrack.applyConstraints({ advanced: [{ torch: false }] }).catch(() => { });
+                }
                 stream.getTracks().forEach(track => track.stop());
                 stream = null;
+                videoTrack = null;
             }
             modal.classList.remove('active');
         }
