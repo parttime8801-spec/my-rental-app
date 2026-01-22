@@ -609,6 +609,9 @@
         }
 
         .torch-btn {
+            position: absolute;
+            top: 15px;
+            right: 15px;
             width: 44px;
             height: 44px;
             border-radius: 50%;
@@ -621,6 +624,7 @@
             justify-content: center;
             cursor: pointer;
             backdrop-filter: blur(5px);
+            z-index: 20;
         }
 
         .torch-btn.active {
@@ -1241,6 +1245,11 @@
                     <video id="camera-video" autoplay playsinline></video>
                     <div class="camera-overlay"></div>
 
+                    <!-- Torch moved to top right -->
+                    <button id="torch-btn" class="torch-btn" onclick="toggleTorch()">
+                        <i data-lucide="flashlight"></i>
+                    </button>
+
                     <div class="camera-controls">
                         <div id="zoom-container" class="zoom-slider-container">
                             <i data-lucide="minus" style="width: 16px; color: white;"></i>
@@ -1248,9 +1257,6 @@
                                 oninput="applyZoom(this.value)">
                             <i data-lucide="plus" style="width: 16px; color: white;"></i>
                         </div>
-                        <button id="torch-btn" class="torch-btn" onclick="toggleTorch()">
-                            <i data-lucide="flashlight"></i>
-                        </button>
                     </div>
 
                     <div id="ocr-loader" class="ocr-loading">
