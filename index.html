@@ -20,6 +20,7 @@
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
+    <script src="https://unpkg.com/tesseract.js@v4.0.1/dist/tesseract.min.js"></script>
     <style>
         :root {
             --primary: #f59e0b;
@@ -470,6 +471,98 @@
             outline: none;
         }
 
+        .btn-camera {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            border: 2px solid var(--primary);
+            background: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: var(--primary);
+            box-shadow: 0 4px 12px rgba(245, 158, 11, 0.2);
+            transition: all 0.2s;
+            z-index: 5;
+        }
+
+        .btn-camera:active {
+            transform: scale(0.9);
+        }
+
+        body.dark-mode .btn-camera {
+            background: #1e293b;
+        }
+
+        /* Camera Modal Specific Styles */
+        .camera-container {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 4/3;
+            background: #000;
+            border-radius: 20px;
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+
+        #camera-video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .camera-overlay {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 70%;
+            height: 40%;
+            border: 2px solid var(--primary);
+            box-shadow: 0 0 0 1000px rgba(0, 0, 0, 0.5);
+            border-radius: 12px;
+            pointer-events: none;
+        }
+
+        .camera-actions {
+            display: flex;
+            gap: 12px;
+            width: 100%;
+        }
+
+        .ocr-loading {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            z-index: 10;
+        }
+
+        .btn-capture {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 16px;
+            font-weight: 700;
+            flex: 2;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
         .btn-primary-large {
             width: 100%;
             background: linear-gradient(135deg, var(--primary), var(--primary-dark));
@@ -890,8 +983,11 @@
                         <select id="bill-room-select" onchange="updateBaseRent()"></select>
                     </div>
                     <div class="meter-grid">
-                        <div class="meter-section">
+                        <div class="meter-section" style="position: relative;">
                             <h4>💧 มิเตอร์ประปา</h4>
+                            <button class="btn-camera" onclick="openCamera('water-curr')" title="ถ่ายรูปเลขมิเตอร์">
+                                <i data-lucide="camera"></i>
+                            </button>
                             <div class="input-pair">
                                 <div class="input-container">
                                     <label>เลขครั้งก่อน</label>
@@ -903,8 +999,11 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="meter-section">
+                        <div class="meter-section" style="position: relative;">
                             <h4>⚡ มิเตอร์ไฟฟ้า</h4>
+                            <button class="btn-camera" onclick="openCamera('elec-curr')" title="ถ่ายรูปเลขมิเตอร์">
+                                <i data-lucide="camera"></i>
+                            </button>
                             <div class="input-pair">
                                 <div class="input-container">
                                     <label>เลขครั้งก่อน</label>
@@ -1064,6 +1163,39 @@
                         style="padding:15px;">ปิดหน้าต่าง</button>
                 </div>
             </div>
+        </div>
+
+        <!-- Camera Modal for OCR -->
+        <div id="camera-modal" class="modal">
+            <div class="modal-content" style="padding: 24px; max-width: 450px;">
+                <h3 style="margin-bottom: 20px; display: flex; align-items: center; gap: 10px;">
+                    <i data-lucide="camera"></i> ถ่ายรูปเลขมิเตอร์
+                </h3>
+
+                <div class="camera-container">
+                    <video id="camera-video" autoplay playsinline></video>
+                    <div class="camera-overlay"></div>
+                    <div id="ocr-loader" class="ocr-loading">
+                        <i data-lucide="refresh-cw" class="spinning"
+                            style="width: 40px; height: 40px; margin-bottom: 10px;"></i>
+                        <p>กำลังอ่านตัวเลข...</p>
+                    </div>
+                </div>
+
+                <div class="camera-actions">
+                    <button onclick="captureAndOCR()" class="btn-capture">
+                        <i data-lucide="scan-line"></i> ถ่ายรูปและสแกน
+                    </button>
+                    <button onclick="closeCamera()" class="btn-secondary" style="flex: 1;">
+                        ยกเลิก
+                    </button>
+                </div>
+
+                <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 15px; text-align: center;">
+                    เล็งให้ตัวเลขอยู่ภายในกรอบเพื่อให้แม่นยำที่สุดครับ
+                </p>
+            </div>
+            <canvas id="camera-canvas" style="display: none;"></canvas>
         </div>
     </div>
 
@@ -1909,6 +2041,102 @@
                 console.log('PWA was installed');
             });
         });
+
+        // --- Camera & OCR Logic ---
+        let currentTargetInputId = '';
+        let stream = null;
+
+        async function openCamera(inputId) {
+            currentTargetInputId = inputId;
+            const modal = document.getElementById('camera-modal');
+            const video = document.getElementById('camera-video');
+
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: 'environment' }
+                });
+                video.srcObject = stream;
+                modal.classList.add('active');
+                lucide.createIcons();
+            } catch (err) {
+                console.error("Error accessing camera:", err);
+                alert("ไม่สามารถเข้าถึงกล้องได้ครับ กรุณาอนุญาตการเข้าถึงกล้องด้วยนะครับ");
+            }
+        }
+
+        function closeCamera() {
+            const modal = document.getElementById('camera-modal');
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                stream = null;
+            }
+            modal.classList.remove('active');
+        }
+
+        async function captureAndOCR() {
+            const video = document.getElementById('camera-video');
+            const canvas = document.getElementById('camera-canvas');
+            const loader = document.getElementById('ocr-loader');
+            const ctx = canvas.getContext('2d');
+
+            // Set canvas size to video size
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+
+            // Draw current video frame to canvas
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            // Show loader
+            loader.style.display = 'flex';
+
+            try {
+                // Perform OCR on the captured image
+                // We crop the image to the overlay area for better accuracy if needed, 
+                // but Tesseract is usually good enough with the full image or we can refine here.
+
+                // Crop to center (simulating the overlay)
+                const cropWidth = canvas.width * 0.7;
+                const cropHeight = canvas.height * 0.4;
+                const cropX = (canvas.width - cropWidth) / 2;
+                const cropY = (canvas.height - cropHeight) / 2;
+
+                const tempCanvas = document.createElement('canvas');
+                tempCanvas.width = cropWidth;
+                tempCanvas.height = cropHeight;
+                tempCanvas.getContext('2d').drawImage(canvas, cropX, cropY, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight);
+
+                const result = await Tesseract.recognize(
+                    tempCanvas.toDataURL('image/jpeg'),
+                    'eng', // Meters usually have standard digits
+                    {
+                        logger: m => console.log(m),
+                        tessedit_char_whitelist: '0123456789' // Only look for numbers
+                    }
+                );
+
+                const text = result.data.text.replace(/[^0-9]/g, '');
+
+                if (text) {
+                    const input = document.getElementById(currentTargetInputId);
+                    input.value = text;
+                    // Trigger input event for any listeners if they exist (though here we don't have many)
+                    input.dispatchEvent(new Event('input'));
+
+                    // Success feedback
+                    setTimeout(() => {
+                        loader.style.display = 'none';
+                        closeCamera();
+                    }, 500);
+                } else {
+                    alert('อ่านตัวเลขไม่สำเร็จครับ ลองถ่ายใหม่อีกทีนะครับลุง');
+                    loader.style.display = 'none';
+                }
+            } catch (error) {
+                console.error("OCR Error:", error);
+                alert('เกิดข้อผิดพลาดในการอ่านข้อความครับ');
+                loader.style.display = 'none';
+            }
+        }
     </script>
 </body>
 
