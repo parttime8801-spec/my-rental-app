@@ -1,4 +1,4 @@
-const CACHE_NAME = 'rentaltrack-v4';
+const CACHE_NAME = 'rentaltrack-v5';
 const ASSETS = [
   './',
   './index.html',
@@ -7,7 +7,8 @@ const ASSETS = [
   'https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=Prompt:wght@300;400;600&display=swap',
   'https://unpkg.com/lucide@latest',
   'https://html2canvas.hertzen.com/dist/html2canvas.min.js',
-  'https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js'
+  'https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js',
+  'https://unpkg.com/tesseract.js@v4.0.1/dist/tesseract.min.js'
 ];
 
 self.addEventListener('install', (event) => {
