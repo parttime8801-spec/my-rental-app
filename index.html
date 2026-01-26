@@ -1644,6 +1644,17 @@
             return parseFloat(str.replace(/,/g, '')) || 0;
         }
 
+        // ฟังก์ชันช่วยคำนวณหน่วยมิเตอร์ รองรับการหมุนวน 4 หลัก (9999 -> 0000)
+        function getMeterDiff(prev, curr) {
+            if (curr >= prev) {
+                return curr - prev;
+            } else {
+                // กรณีมิเตอร์วนรอบ (Rollover) เช่น ก่อน 9604 นี้ 139
+                // คำนวณ (10000 - 9604) + 139 = 396 + 139 = 535
+                return (10000 - prev) + curr;
+            }
+        }
+
         function calculateBill() {
             const roomId = document.getElementById('bill-room-select').value;
             const room = rooms.find(r => r.id === roomId);
@@ -1656,8 +1667,10 @@
             const elecRate = parseFloat(localStorage.getItem('elec_price')) || 7;
             const waterRate = parseFloat(localStorage.getItem('water_price')) || 18;
 
-            const ePrice = Math.max(0, ec - ep) * elecRate;
-            const wPrice = Math.max(0, wc - wp) * waterRate;
+            const eUnits = getMeterDiff(ep, ec);
+            const wUnits = getMeterDiff(wp, wc);
+            const ePrice = eUnits * elecRate;
+            const wPrice = wUnits * waterRate;
             const total = base + ePrice + wPrice;
 
             room.lastElec = ec;
@@ -1678,9 +1691,9 @@
                 details: {
                     tenant: room.tenant,
                     base: base,
-                    eUnits: Math.max(0, ec - ep),
+                    eUnits: eUnits,
                     ePrice: ePrice,
-                    wUnits: Math.max(0, wc - wp),
+                    wUnits: wUnits,
                     wPrice: wPrice,
                     meters: { ep, ec, wp, wc } // เก็บไว้เพื่อการแก้ไข
                 },
@@ -1720,8 +1733,8 @@
                 <div class="receipt-header"><h2>ใบแจ้งค่าเช่า</h2><p>ห้อง ${roomId}</p><small>${dateStr.replace(/ 25(\d{2})$/, ' $1')}</small></div>
                 <div class="receipt-row"><span>ชื่อผู้เช่า</span><span>${room.tenant}</span></div>
                 <div class="receipt-row"><span>ค่าเช่าห้อง</span><span>฿${base.toLocaleString()}</span></div>
-                <div class="receipt-row"><span>ค่าไฟ (${Math.max(0, ec - ep)} หน่วย)</span><span>฿${ePrice.toLocaleString()}</span></div>
-                <div class="receipt-row"><span>ค่าน้ำ (${Math.max(0, wc - wp)} หน่วย)</span><span>฿${wPrice.toLocaleString()}</span></div>
+                <div class="receipt-row"><span>ค่าไฟ (${eUnits} หน่วย)</span><span>฿${ePrice.toLocaleString()}</span></div>
+                <div class="receipt-row"><span>ค่าน้ำ (${wUnits} หน่วย)</span><span>฿${wPrice.toLocaleString()}</span></div>
                 <div class="receipt-total"><span>ยอดรวม</span><span>฿${total.toLocaleString()}</span></div>
                 ${qrHtml}
                 <p style="text-align:center; margin-top:20px; font-size:0.8rem; color:#64748b;">ขอบคุณที่ใช้บริการครับ 🙏</p>
@@ -2014,8 +2027,8 @@
 
             roomTransactions.forEach(t => {
                 const m = t.details.meters;
-                const eDiff = Math.max(0, m.ec - m.ep);
-                const wDiff = Math.max(0, m.wc - m.wp);
+                const eDiff = getMeterDiff(m.ep, m.ec);
+                const wDiff = getMeterDiff(m.wp, m.wc);
 
                 html += `
                     <tr class="history-row">
@@ -2100,7 +2113,7 @@
                                         if (navigator.serviceWorker.controller) {
                                             // New content is available, show a message or just reload
                                             console.log('New content detected, updating...');
-                                            if (confirm('พบเวอร์ชันใหม่ (ระบบกล้อง)! ต้องการอัปเดตตอนนี้ไหมครับลุง?')) {
+                                            if (confirm('พบเวอร์ชันใหม่ (ระบบคำนวณมิเตอร์ใหม่)! ต้องการอัปเดตตอนนี้ไหมครับลุง?')) {
                                                 window.location.reload();
                                             }
                                         }
