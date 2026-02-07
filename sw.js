@@ -1,4 +1,4 @@
-const CACHE_NAME = 'rentaltrack-v11';
+const CACHE_NAME = 'rentaltrack-v12';
 const ASSETS = [
   './',
   './index.html',
