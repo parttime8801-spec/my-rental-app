@@ -1023,8 +1023,19 @@
                         <h2 class="value" id="stat-pending">฿0</h2>
                     </div>
                 </div>
-                <div class="section-title">
+                <div class="section-title" style="display:flex; justify-content:space-between; align-items:center;">
                     <h3>รายการล่าสุด</h3>
+                    <button id="btn-merge-mode" onclick="toggleMergeMode()" class="btn-secondary"
+                        style="padding:5px 12px; font-size:0.75rem; border-radius:10px;">
+                        <i data-lucide="layers" style="width:14px;"></i> รวมบิล
+                    </button>
+                </div>
+                <div id="merge-actions"
+                    style="display:none; margin-bottom:15px; background:rgba(245, 158, 11, 0.1); padding:15px; border-radius:15px; border:1px dashed var(--primary); text-align:center;">
+                    <p style="font-size:0.85rem; color:var(--text-main); margin-bottom:10px;">
+                        เลือกรายการที่ต้องการรวมแล้วกดปุ่มด้านล่างครับ (<span id="selected-count">0</span> รายการ)</p>
+                    <button onclick="generateMergedBill()" class="btn-add" style="width:100%;"><i
+                            data-lucide="file-text"></i> ออกบิลรวมที่เลือก</button>
                 </div>
                 <div id="recent-transactions"></div>
             </section>
@@ -1417,17 +1428,65 @@
             }
         }
 
+        let isMergeMode = false;
+        let selectedIndices = [];
+
+        function toggleMergeMode() {
+            isMergeMode = !isMergeMode;
+            const btn = document.getElementById('btn-merge-mode');
+            const mergeActions = document.getElementById('merge-actions');
+
+            if (isMergeMode) {
+                btn.innerHTML = '<i data-lucide="x" style="width:14px;"></i> ยกเลิกเลือก';
+                btn.style.background = 'rgba(239, 68, 68, 0.1)';
+                btn.style.color = 'var(--danger)';
+                mergeActions.style.display = 'block';
+                selectedIndices = [];
+                document.getElementById('selected-count').innerText = '0';
+            } else {
+                btn.innerHTML = '<i data-lucide="layers" style="width:14px;"></i> รวมบิล';
+                btn.style.background = 'var(--secondary)';
+                btn.style.color = 'var(--text-main)';
+                mergeActions.style.display = 'none';
+            }
+            lucide.createIcons();
+            renderDashboard();
+        }
+
+        function toggleSelectBill(index) {
+            const idx = selectedIndices.indexOf(index);
+            if (idx > -1) {
+                selectedIndices.splice(idx, 1);
+            } else {
+                selectedIndices.push(index);
+            }
+            document.getElementById('selected-count').innerText = selectedIndices.length;
+            renderDashboard();
+        }
+
         function renderDashboard() {
             const container = document.getElementById('recent-transactions');
             if (!container) return;
             container.innerHTML = transactions.slice().reverse().map((t, index) => {
                 const originalIndex = transactions.length - 1 - index;
                 const isPaid = t.status === 'paid';
+                const isSelected = selectedIndices.includes(originalIndex);
+
                 return `
-                <div class="transaction-item" onclick="viewDetail(${originalIndex})" style="cursor:pointer; position:relative;">
-                    <div class="icon-box" style="background:${isPaid ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)'}; color:${isPaid ? 'var(--success)' : 'var(--danger)'}">
-                        <i data-lucide="${isPaid ? 'check-circle' : 'receipt'}"></i>
-                    </div>
+                <div class="transaction-item ${isSelected ? 'selected' : ''}" 
+                     onclick="${isMergeMode ? `toggleSelectBill(${originalIndex})` : `viewDetail(${originalIndex})`}" 
+                     style="cursor:pointer; position:relative; ${isSelected ? 'border:2px solid var(--primary);' : ''}">
+                    
+                    ${isMergeMode ? `
+                        <div class="selection-check" style="margin-right:15px; color:${isSelected ? 'var(--primary)' : '#ccc'}">
+                            <i data-lucide="${isSelected ? 'check-square' : 'square'}"></i>
+                        </div>
+                    ` : `
+                        <div class="icon-box" style="background:${isPaid ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)'}; color:${isPaid ? 'var(--success)' : 'var(--danger)'}">
+                            <i data-lucide="${isPaid ? 'check-circle' : 'receipt'}"></i>
+                        </div>
+                    `}
+                    
                     <div class="item-info">
                         <h4>ห้อง ${t.room}</h4>
                         <p>${t.date.replace(/ 25(\d{2})$/, ' $1')}</p>
@@ -1437,7 +1496,7 @@
                     </div>
                     <div class="item-amount" style="display:flex; align-items:center; gap:10px;">
                         <span class="price">฿${t.amount.toLocaleString()}</span>
-                        <button onclick="event.stopPropagation(); deleteTransaction(${originalIndex})" style="border:none; background:rgba(239, 68, 68, 0.1); color:var(--danger); padding:5px; border-radius:8px;"><i data-lucide="trash-2" style="width:14px"></i></button>
+                        ${!isMergeMode ? `<button onclick="event.stopPropagation(); deleteTransaction(${originalIndex})" style="border:none; background:rgba(239, 68, 68, 0.1); color:var(--danger); padding:5px; border-radius:8px;"><i data-lucide="trash-2" style="width:14px"></i></button>` : ''}
                     </div>
                 </div>
             `}).join('');
@@ -1816,6 +1875,83 @@
         }
 
         // ฟังก์ชันสร้างรหัส Payload สำหรับพร้อมเพย์ให้สแกนได้จริง
+        async function generateMergedBill() {
+            if (selectedIndices.length < 2) {
+                alert("ลุงต้องเลือกบิลอย่างน้อย 2 รายการขึ้นไปเพื่อรวมกันนะครับ");
+                return;
+            }
+
+            const selectedTransactions = selectedIndices.map(idx => transactions[idx]);
+            const roomsStr = selectedTransactions.map(t => t.room).join(', ');
+            const totalAmount = selectedTransactions.reduce((sum, t) => sum + t.amount, 0);
+            const ppId = localStorage.getItem('promptpay_id');
+            const ppName = localStorage.getItem('promptpay_name');
+
+            let itemsHtml = selectedTransactions.map(t => `
+                <div style="background:rgba(0,0,0,0.02); padding:15px; border-radius:12px; margin-bottom:15px; border:1px solid #eee;">
+                    <div style="display:flex; justify-content:space-between; font-weight:800; border-bottom:1px solid #ddd; padding-bottom:10px; margin-bottom:10px;">
+                        <span>ห้อง ${t.room}</span>
+                        <span>${t.date.split(' ')[0]}</span>
+                    </div>
+                    <div class="receipt-row"><span>ชื่อผู้เช่า</span><span>${t.details.tenant}</span></div>
+                    <div class="receipt-row"><span>ค่าเช่าห้อง</span><span>฿${t.details.base.toLocaleString()}</span></div>
+                    <div class="receipt-row"><span>ค่าไฟ (${t.details.eUnits} หน่วย)</span><span>฿${t.details.ePrice.toLocaleString()}</span></div>
+                    <div class="receipt-row"><span>ค่าน้ำ (${t.details.wUnits} หน่วย)</span><span>฿${t.details.wPrice.toLocaleString()}</span></div>
+                    <div style="text-align:right; font-weight:700; color:#000; margin-top:5px;">ย่อย: ฿${t.amount.toLocaleString()}</div>
+                </div>
+            `).join('');
+
+            let qrHtml = '';
+            if (ppId && ppId.length >= 10) {
+                qrHtml = `
+                    <div style="text-align:center; margin-top:20px; padding-top:20px; border-top:1px dashed #ccc;">
+                        <p style="font-size:0.8rem; color:black; font-weight:700; margin-bottom:5px;">สแกนเพื่อชำระเงินรวม (PromptPay)</p>
+                        ${ppName ? `<p style="font-size:0.9rem; font-weight:800; color:black; margin-bottom:8px;">${ppName}</p>` : ''}
+                        <canvas id="qr-canvas-merge" style="margin:0 auto; background:#fff; padding:10px; border-radius:12px; border:1px solid #eee;"></canvas>
+                        <p style="font-size:0.7rem; color:#333; margin-top:8px;">บิลรวม ${selectedTransactions.length} รายการ</p>
+                    </div>
+                `;
+            }
+
+            document.getElementById('receipt-content').innerHTML = `
+                <div class="receipt-header">
+                    <h2>ใบแจ้งค่าเช่า (บิลรวม)</h2>
+                    <p>ห้อง: ${roomsStr}</p>
+                    <small>${new Date().toLocaleDateString('th-TH')}</small>
+                </div>
+                ${itemsHtml}
+                <div class="receipt-total" style="background:var(--primary); color:white; padding:20px; border-radius:15px;">
+                    <span>รวมทั้งสิ้น</span>
+                    <span>฿${totalAmount.toLocaleString()}</span>
+                </div>
+                ${qrHtml}
+                <p style="text-align:center; margin-top:20px; font-size:0.8rem; color:#333;">ขอบคุณที่ใช้บริการครับ 🙏</p>
+            `;
+
+            document.getElementById('modal-actions-container').innerHTML = `
+                <button onclick="directPrint()" class="btn-receipt-action" style="background:#000; color:#fff;">
+                    <i data-lucide="printer"></i> พิมพ์ทันที (Turbo)
+                </button>
+                <button onclick="saveAsImage()" class="btn-receipt-action"><i data-lucide="share-2"></i> ส่งรูป (PNG)</button>
+                <button onclick="closeModal()" class="btn-receipt-action" style="background:rgba(239, 68, 68, 0.1); color:var(--danger);"><i data-lucide="x"></i> ปิด</button>
+            `;
+
+            if (ppId && ppId.length >= 10) {
+                const qrPayload = generatePromptPayPayload(ppId, totalAmount.toFixed(2));
+                setTimeout(() => {
+                    new QRious({
+                        element: document.getElementById('qr-canvas-merge'),
+                        value: qrPayload,
+                        size: 240,
+                        level: 'L'
+                    });
+                }, 100);
+            }
+
+            document.getElementById('receipt-modal').classList.add('active');
+            lucide.createIcons();
+        }
+
         function generatePromptPayPayload(ppId, amount) {
             const cleanId = ppId.replace(/[^0-9]/g, '');
             const target = cleanId.length === 13 ? cleanId : ("0066" + cleanId.slice(1)).slice(-13);
