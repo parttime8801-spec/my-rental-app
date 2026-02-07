@@ -1888,8 +1888,8 @@
             const ppName = localStorage.getItem('promptpay_name');
 
             let itemsHtml = selectedTransactions.map(t => `
-                <div style="background:rgba(0,0,0,0.02); padding:15px; border-radius:12px; margin-bottom:15px; border:1px solid #eee;">
-                    <div style="display:flex; justify-content:space-between; font-weight:800; border-bottom:1px solid #ddd; padding-bottom:10px; margin-bottom:10px;">
+                <div style="padding:10px 0; margin-bottom:10px; border-bottom:1px solid #000;">
+                    <div style="display:flex; justify-content:space-between; font-weight:800; border-bottom:1px solid #000; padding-bottom:5px; margin-bottom:10px;">
                         <span>ห้อง ${t.room}</span>
                         <span>${t.date}</span>
                     </div>
@@ -1904,7 +1904,7 @@
             let qrHtml = '';
             if (ppId && ppId.length >= 10) {
                 qrHtml = `
-                    <div style="text-align:center; margin-top:20px; padding-top:20px; border-top:1px dashed #ccc;">
+                    <div style="text-align:center; margin-top:20px; padding-top:20px; border-top:1px solid #000;">
                         <p style="font-size:0.8rem; color:black; font-weight:700; margin-bottom:5px;">สแกนเพื่อชำระเงินรวม (PromptPay)</p>
                         ${ppName ? `<p style="font-size:0.9rem; font-weight:800; color:black; margin-bottom:8px;">${ppName}</p>` : ''}
                         <canvas id="qr-canvas-merge" style="margin:0 auto; background:#fff; padding:10px; border-radius:12px; border:1px solid #eee;"></canvas>
